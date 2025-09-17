@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Five-in-a-Row (Gomoku)</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>Five-in-a-Row</h1>
+      <div class="topbar">
+        <div class="room-pill" id="roomPill" aria-live="polite">Room: —</div>
+        <button id="newGameBtn" class="primary">New Game</button>
+      </div>
+      <div id="status" role="status">Welcome! Choose a mode to start.</div>
+    </header>
+
+    <main>
+      <canvas id="board" width="760" height="760" aria-label="Gomoku board" role="img"></canvas>
+      <aside>
+        <div class="info">
+          <div><strong>Your color:</strong> <span id="yourColor">–</span></div>
+          <div><strong>Next turn:</strong> <span id="nextTurn">–</span></div>
+          <div><strong>Room:</strong> <span id="roomId">–</span></div>
+        </div>
+        <div class="legend">
+          <div class="stone black"></div> Black (first)
+          <div class="stone white"></div> White
+        </div>
+        <details>
+          <summary>Rules</summary>
+          <p>Players alternate placing stones on <em>intersections</em> of a 19×19 grid. First to five in a row (horizontal, vertical, or diagonal) wins.</p>
+        </details>
+      </aside>
+    </main>
+  </div>
+
+  <!-- Welcome / Mode Selection Modal -->
+  <div id="welcomeModal" class="modal show" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle">
+    <div class="modal-card">
+      <h2 id="welcomeTitle">Five-in-a-Row</h2>
+      <p class="muted">Choose how you want to play.</p>
+      <div class="modal-actions">
+        <button id="choosePvp" class="primary">Two Players</button>
+        <button id="chooseAi">Vs AI</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Waiting Overlay (PvP) -->
+  <div id="waitingOverlay" class="overlay hidden" aria-live="polite">
+    <div class="overlay-card">
+      <div class="spinner" aria-hidden="true"></div>
+      <div class="text">Waiting for another player to join…</div>
+    </div>
+  </div>
+
+  <script src="/client.js" defer></script>
+</body>
+</html>

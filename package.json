@@ -1,0 +1,18 @@
+{
+    "name": "five-in-a-row",
+    "version": "1.0.0",
+    "private": true,
+    "description": "Gomoku client+server with server-validated moves and AI opponent",
+    "main": "server.js",
+    "type": "module",
+    "scripts": {
+    "start": "node server.js",
+    "dev": "NODE_ENV=development node server.js",
+    "lint": "echo 'No linter configured for this homework'"
+    },
+    "dependencies": {
+    "express": "^4.19.2",
+    "uuid": "^9.0.1",
+    "ws": "^8.18.0"
+    }
+    }

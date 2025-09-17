@@ -1,0 +1,42 @@
+* { box-sizing: border-box; }
+:root {
+  --bg: #fafafa;
+  --panel: #ffffff;
+  --border: #e5e7eb;
+  --ink: #111;
+  --muted: #6b7280;
+  --accent: #2563eb;
+}
+body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; color: var(--ink); background: var(--bg); }
+header { padding: 12px 16px; background: var(--panel); border-bottom: 1px solid var(--border); position: sticky; top: 0; }
+h1 { margin: 0 0 8px 0; font-size: 20px; }
+#status { color: #374151; font-size: 14px; }
+.topbar { display: flex; align-items: center; gap: 12px; margin: 8px 0; }
+.room-pill { background: #f3f4f6; border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px; font-size: 12px; }
+button { padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border); background: #fff; cursor: pointer; }
+button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+main { display: grid; grid-template-columns: 760px 1fr; gap: 16px; padding: 16px; }
+canvas { background: #fdf6e3; border: 2px solid #d1b48c; border-radius: 8px; display: block; }
+aside { padding: 8px; }
+.info { font-size: 14px; display: grid; gap: 4px; margin-bottom: 12px; }
+.legend { display: flex; align-items: center; gap: 8px; font-size: 14px; margin-bottom: 12px; }
+.stone { width: 16px; height: 16px; border-radius: 999px; display: inline-block; border: 1px solid #0004; }
+.stone.black { background: #111; }
+.stone.white { background: #fff; }
+
+/* Modal */
+.modal { position: fixed; inset: 0; display: none; place-items: center; background: rgba(0,0,0,0.4); z-index: 50; }
+.modal.show { display: grid; }
+.modal-card { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 20px; width: min(92vw, 420px); box-shadow: 0 10px 30px rgba(0,0,0,0.15); text-align: center; }
+.modal-card h2 { margin: 0 0 6px 0; }
+.modal-card .muted { color: var(--muted); margin: 0 0 16px 0; }
+.modal-actions { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
+
+/* Waiting overlay */
+.overlay { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(255,255,255,0.75); z-index: 40; }
+.hidden { display: none !important; }
+.overlay-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; display: flex; align-items: center; gap: 10px; }
+.spinner { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #ddd; border-top-color: var(--accent); animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }

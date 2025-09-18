@@ -1,63 +1,81 @@
+/* public/client.js */
 (() => {
     'use strict';
   
+    // --- Constants ---
     const BOARD_SIZE = 19;
     const EMPTY = 0, BLACK = 1, WHITE = 2;
   
-    // Canvas & layout
+    // --- Canvas ---
     const canvas = document.getElementById('board');
     const ctx = canvas.getContext('2d', { alpha: false });
     const padding = 30;
     const gridSize = canvas.width - padding * 2;
     const cell = gridSize / (BOARD_SIZE - 1);
   
-    // UI
-    const statusEl = document.getElementById('status');
+    // --- UI elements ---
+    const statusEl    = document.getElementById('status');
     const yourColorEl = document.getElementById('yourColor');
-    const nextTurnEl = document.getElementById('nextTurn');
-    const roomIdEl = document.getElementById('roomId');
-    const roomPill = document.getElementById('roomPill');
-    const newGameBtn = document.getElementById('newGameBtn');
+    const nextTurnEl  = document.getElementById('nextTurn');
+    const roomIdEl    = document.getElementById('roomId');
+    const roomPill    = document.getElementById('roomPill');
+    const newGameBtn  = document.getElementById('newGameBtn');
+    const playAiBtn   = document.getElementById('playAiBtn');
   
-    // Modal / overlay
+    // Welcome modal (first visit only; NOT on reload)
     const welcomeModal = document.getElementById('welcomeModal');
-    const choosePvp = document.getElementById('choosePvp');
-    const chooseAi = document.getElementById('chooseAi');
-    const waitingOverlay = document.getElementById('waitingOverlay');
+    const choosePvp    = document.getElementById('choosePvp');
+    const chooseAi     = document.getElementById('chooseAi');
   
+    // Waiting overlay (PvP waiting)
+    const waitingOverlay   = document.getElementById('waitingOverlay');
+    const playAiBtnOverlay = document.getElementById('playAiBtnOverlay');
+  
+    // New AI Game button (visible only in AI mode)
+    const newAiBtn = document.getElementById('newAiBtn');
+  
+    // --- State (use sessionStorage so two tabs = two distinct players; reload keeps state) ---
     let ws = null;
     let state = {
-      sessionId: localStorage.getItem('sessionId') || null,
-      roomId: localStorage.getItem('roomId') || null,
-      roomName: localStorage.getItem('roomName') || '—',
+      sessionId: sessionStorage.getItem('sessionId') || null,
+      roomId:    sessionStorage.getItem('roomId')    || null,
+      roomName:  sessionStorage.getItem('roomName')  || '—',
       color: 0,
       nextTurn: BLACK,
       winner: 0,
       board: Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(EMPTY)),
-      mode: null // 'pvp' | 'ai'
+      mode: sessionStorage.getItem('mode') || null // 'pvp' | 'ai' | null (null => first visit, show modal)
     };
   
-    // ---- UI helpers ----
+    // --- Helpers ---
+    const show = el => el.classList.add('show');
+    const hide = el => el.classList.remove('show');
+    const showModal = () => show(welcomeModal);
+    const hideModal = () => hide(welcomeModal);
+  
+    const showWaiting = () => waitingOverlay?.classList.remove('hidden');
+    const hideWaiting = () => waitingOverlay?.classList.add('hidden');
+  
     function setStatus(msg) { statusEl.textContent = msg; }
-    function colorName(c) { return c === BLACK ? 'Black' : (c === WHITE ? 'White' : '–'); }
-    function showModal() { welcomeModal.classList.add('show'); }
-    function hideModal() { welcomeModal.classList.remove('show'); }
-    function showWaiting() { waitingOverlay.classList.remove('hidden'); }
-    function hideWaiting() { waitingOverlay.classList.add('hidden'); }
+    function colorName(c)   { return c === BLACK ? 'Black' : (c === WHITE ? 'White' : '–'); }
   
     function saveSession() {
-      if (state.sessionId) localStorage.setItem('sessionId', state.sessionId);
-      if (state.roomId) localStorage.setItem('roomId', state.roomId);
-      if (state.roomName) localStorage.setItem('roomName', state.roomName);
+      if (state.sessionId) sessionStorage.setItem('sessionId', state.sessionId);
+      if (state.roomId)    sessionStorage.setItem('roomId', state.roomId);
+      if (state.roomName)  sessionStorage.setItem('roomName', state.roomName);
+      if (state.mode)      sessionStorage.setItem('mode', state.mode);
     }
   
-    // ---- Drawing ----
+    function getWsURL() {
+      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+      return `${proto}://${location.host}`;
+    }
+  
+    // --- Drawing ---
     function drawBoard() {
-      // background
       ctx.fillStyle = '#fdf6e3';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
   
-      // grid
       ctx.strokeStyle = '#b58900';
       ctx.lineWidth = 1;
       for (let i = 0; i < BOARD_SIZE; i++) {
@@ -67,7 +85,6 @@
         ctx.beginPath(); ctx.moveTo(padding, y); ctx.lineTo(canvas.width - padding, y); ctx.stroke();
       }
   
-      // star points
       const stars = [3, 9, 15];
       ctx.fillStyle = '#444';
       for (const sy of stars) for (const sx of stars) {
@@ -75,7 +92,6 @@
         ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI * 2); ctx.fill();
       }
   
-      // stones
       for (let y = 0; y < BOARD_SIZE; y++) {
         for (let x = 0; x < BOARD_SIZE; x++) {
           const v = state.board[y][x];
@@ -94,13 +110,10 @@
     }
   
     function canvasToCell(mx, my) {
-      return {
-        x: Math.round((mx - padding) / cell),
-        y: Math.round((my - padding) / cell),
-      };
+      return { x: Math.round((mx - padding) / cell), y: Math.round((my - padding) / cell) };
     }
   
-    // ---- Input: place stone ----
+    // --- Input: place stone ---
     canvas.addEventListener('click', (e) => {
       if (!ws || ws.readyState !== 1) return;
       if (state.winner) return;
@@ -109,34 +122,89 @@
       const rect = canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left, my = e.clientY - rect.top;
       const { x, y } = canvasToCell(mx, my);
+  
       if (x < 0 || x >= BOARD_SIZE || y < 0 || y >= BOARD_SIZE) return;
       if (state.board[y][x] !== EMPTY) { setStatus('That intersection is occupied.'); return; }
   
       ws.send(JSON.stringify({ type: 'move', x, y }));
     });
   
-    // ---- Connection flow ----
-    function connect(mode) {
-      state.mode = mode;
+    // New AI game button
+    newAiBtn?.addEventListener('click', () => {
+      if (ws && ws.readyState === 1) {
+        ws.send(JSON.stringify({ type: 'newAIGame' }));
+      }
+    });
   
-      // When choosing a mode, don't reuse old room; we’ll either rejoin properly or get a new one
-      state.roomId = null;
-      state.roomName = '—';
-      localStorage.removeItem('roomId');
-      localStorage.removeItem('roomName');
+    // --- Buttons ---
+    newGameBtn?.addEventListener('click', () => {
+      if (!ws || ws.readyState !== 1) return;
+      if (state.mode === 'ai') {
+        // Switch back to PvP and try to rejoin the previous PvP room (where the opponent is waiting)
+        const preferRoomId = sessionStorage.getItem('lastPvpRoomId') || null;
+        state.mode = 'pvp';
+        saveSession();
+        if (newAiBtn) newAiBtn.style.display = 'none';
+        ws.send(JSON.stringify({ type: 'switchMode', mode: 'pvp', preferRoomId }));
+      } else {
+        // Already PvP: just reset board for both (no popups for opponent)
+        ws.send(JSON.stringify({ type: 'newGame' }));
+      }
+    });
   
-      if (ws && ws.readyState === 1) try { ws.close(); } catch {}
+    function switchToAi() {
+      if (state.mode === 'pvp' && state.roomId) {
+        sessionStorage.setItem('lastPvpRoomId', state.roomId);
+      }
+      state.mode = 'ai';
+      saveSession();
+      if (ws && ws.readyState === 1) {
+        ws.send(JSON.stringify({ type: 'switchMode', mode: 'ai' }));
+      }
+      if (newAiBtn) newAiBtn.style.display = 'inline-block';
+      if (playAiBtn) playAiBtn.style.display = 'none'; // hide Play vs AI while in AI mode
+    }
+  
+    playAiBtn?.addEventListener('click', switchToAi);
+    playAiBtnOverlay?.addEventListener('click', switchToAi);
+  
+    // --- Welcome modal choices (first visit ONLY). On reload, we skip the modal. ---
+    function startPvp() {
+      state.mode = 'pvp';
+      saveSession();
+      hideModal();
+      connect(); // restore if any, else create/join PvP
+      showWaiting(); // show loader until paired
+    }
+    function startAi() {
+      state.mode = 'ai';
+      saveSession();
+      hideModal();
+      connect(); // AI starts immediately
+      hideWaiting();
+    }
+    choosePvp?.addEventListener('click', startPvp);
+    chooseAi?.addEventListener('click', startAi);
+  
+    // --- Connection / matchmaking ---
+    function connect() {
+      if (ws && ws.readyState === 1) { try { ws.close(); } catch {} }
       ws = new WebSocket(getWsURL());
       setStatus('Connecting…');
   
       ws.onopen = () => {
-        setStatus('Connected. Pairing…');
+        setStatus('Connected.');
         ws.send(JSON.stringify({
           type: 'hello',
           sessionId: state.sessionId,
-          roomId: null,
-          mode // 'pvp' | 'ai'
+          roomId: state.roomId,
+          mode: state.mode || 'pvp'
         }));
+        if ((state.mode || 'pvp') === 'pvp') showWaiting();
+  
+        // Initial toggle
+        if (newAiBtn) newAiBtn.style.display = (state.mode === 'ai') ? 'inline-block' : 'none';
+        if (playAiBtn) playAiBtn.style.display = (state.mode === 'ai') ? 'none' : 'inline-block';
       };
   
       ws.onmessage = (ev) => {
@@ -149,7 +217,7 @@
           state.color = msg.color;
           saveSession();
           yourColorEl.textContent = colorName(state.color);
-          roomIdEl.textContent = state.roomId.slice(0, 8) + '…';
+          roomIdEl.textContent = state.roomId ? (state.roomId.slice(0, 8) + '…') : '—';
           return;
         }
   
@@ -157,7 +225,7 @@
           if (Array.isArray(msg.board)) state.board = msg.board;
           state.nextTurn = msg.nextTurn;
           state.winner = msg.winner;
-          state.mode = msg.mode || state.mode;
+          state.mode = msg.mode || state.mode || 'pvp';
           if (msg.roomName) {
             state.roomName = msg.roomName;
             roomPill.textContent = `Room: ${state.roomName}`;
@@ -165,6 +233,11 @@
           }
           updateHud();
           drawBoard();
+  
+          // Toggle AI buttons based on current mode
+          if (newAiBtn) newAiBtn.style.display = (state.mode === 'ai') ? 'inline-block' : 'none';
+          if (playAiBtn) playAiBtn.style.display = (state.mode === 'ai') ? 'none' : 'inline-block';
+  
           return;
         }
   
@@ -180,13 +253,14 @@
         if (msg.type === 'result') {
           state.winner = msg.winner;
           updateHud();
-          setStatus(`${colorName(state.winner)} wins!`);
+          setStatus(`${colorName(state.winner)} wins! Start a new multiplayer game or switch to AI.`);
           return;
         }
   
         if (msg.type === 'status') {
           setStatus(msg.message);
-          if (msg.waiting === true) showWaiting(); else hideWaiting();
+          if (msg.waiting === true) showWaiting();
+          if (msg.waiting === false) hideWaiting();
           return;
         }
   
@@ -199,7 +273,8 @@
   
       ws.onclose = () => {
         setStatus('Disconnected.');
-        hideWaiting();
+        // If PvP, show waiting again so the user knows they aren't paired yet.
+        if ((state.mode || 'pvp') === 'pvp') showWaiting();
       };
     }
   
@@ -208,39 +283,22 @@
       yourColorEl.textContent = colorName(state.color);
     }
   
-    function getWsURL() {
-      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-      return `${proto}://${location.host}`;
-    }
-  
-    // ---- New Game behavior ----
-    newGameBtn.addEventListener('click', () => {
-      // Immediately clear board & notify opponent via server
-      if (ws && ws.readyState === 1) {
-        ws.send(JSON.stringify({ type: 'newGame' }));
-      }
-      // Locally show popup to choose next mode
-      showModal();
-    });
-  
-    // ---- Modal choices ----
-    choosePvp.addEventListener('click', () => {
-      hideModal();
-      connect('pvp');
-      // In PvP, show waiting overlay until both players are present
-      showWaiting();
-    });
-  
-    chooseAi.addEventListener('click', () => {
-      hideModal();
-      connect('ai');
-      hideWaiting();
-    });
-  
-    // ---- Auto open modal on first load ----
+    // --- First load behavior ---
     window.addEventListener('load', () => {
       drawBoard();
-      showModal();
+  
+      const hasSession = Boolean(sessionStorage.getItem('sessionId'));
+      const hasRoom    = Boolean(sessionStorage.getItem('roomId'));
+      const savedMode  = sessionStorage.getItem('mode'); // 'pvp' | 'ai' | null
+  
+      if (hasRoom || hasSession || savedMode) {
+        // RELOAD PATH: do NOT show modal; restore exactly as-is
+        state.mode = savedMode || 'pvp';
+        connect();
+      } else {
+        // FIRST VISIT: show modal to pick PvP or AI
+        showModal();
+      }
     });
   })();
   

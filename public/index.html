@@ -10,11 +10,13 @@
   <div id="app">
     <header>
       <h1>Five-in-a-Row</h1>
-      <div class="topbar">
-        <div class="room-pill" id="roomPill" aria-live="polite">Room: —</div>
-        <button id="newGameBtn" class="primary">New Game</button>
+      <div class="controls">
+        <button id="newGameBtn" class="primary">New Multiplayer Game</button>
+        <button id="playAiBtn">Play vs AI</button>
+        <button id="newAiBtn" style="display:none">New AI Game</button>
       </div>
       <div id="status" role="status">Welcome! Choose a mode to start.</div>
+      <div id="roomPill" class="pill">Room: —</div>
     </header>
 
     <main>
@@ -23,7 +25,6 @@
         <div class="info">
           <div><strong>Your color:</strong> <span id="yourColor">–</span></div>
           <div><strong>Next turn:</strong> <span id="nextTurn">–</span></div>
-          <div><strong>Room:</strong> <span id="roomId">–</span></div>
         </div>
         <div class="legend">
           <div class="stone black"></div> Black (first)
@@ -31,29 +32,35 @@
         </div>
         <details>
           <summary>Rules</summary>
-          <p>Players alternate placing stones on <em>intersections</em> of a 19×19 grid. First to five in a row (horizontal, vertical, or diagonal) wins.</p>
+          <p>Place stones on the <em>intersections</em> of the 19×19 grid. First to five in a row (horizontal, vertical, or diagonal) wins.</p>
         </details>
       </aside>
     </main>
   </div>
 
-  <!-- Welcome / Mode Selection Modal -->
-  <div id="welcomeModal" class="modal show" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle">
+  <!-- Welcome modal: only shown if we have no prior session/room -->
+  <div id="welcomeModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle">
     <div class="modal-card">
-      <h2 id="welcomeTitle">Five-in-a-Row</h2>
-      <p class="muted">Choose how you want to play.</p>
+      <h2 id="welcomeTitle">Start a Game</h2>
+      <p class="muted">Choose who you want to play against.</p>
       <div class="modal-actions">
         <button id="choosePvp" class="primary">Two Players</button>
         <button id="chooseAi">Vs AI</button>
+        <button id="chooseLocal">Local (same device)</button>
+
       </div>
     </div>
   </div>
 
-  <!-- Waiting Overlay (PvP) -->
+  <!-- Waiting overlay (PvP waiting) -->
   <div id="waitingOverlay" class="overlay hidden" aria-live="polite">
-    <div class="overlay-card">
+    <div class="overlay-content">
       <div class="spinner" aria-hidden="true"></div>
-      <div class="text">Waiting for another player to join…</div>
+      <div class="overlay-text">
+        <h2>Waiting for another player…</h2>
+        <p>You can also start a game against AI.</p>
+      </div>
+      <button id="playAiBtnOverlay">Play vs AI</button>
     </div>
   </div>
 

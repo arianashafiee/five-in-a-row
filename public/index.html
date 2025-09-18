@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="en">
   <head>
@@ -8,7 +9,96 @@
     />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Five-in-a-Row (Gomoku)</title>
-    <link rel="stylesheet" href="/style.css" />
+    <style>
+* { box-sizing: border-box; }
+:root {
+  --bg: #fafafa;
+  --panel: #ffffff;
+  --border: #e5e7eb;
+  --ink: #111;
+  --muted: #6b7280;
+  --accent: #2563eb;
+  --success: #16a34a;
+  --danger: #dc2626;
+}
+body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; color: var(--ink); background: var(--bg); }
+
+header {
+  padding: 12px 16px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0;
+  display: grid; grid-template-columns: auto 1fr auto auto; gap: 12px; align-items: center;
+}
+h1 { margin: 0; font-size: 20px; }
+.controls { display: flex; gap: 8px; align-items: center; }
+button {
+  padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border); background: #fff;
+  cursor: pointer; font-size: 14px;
+}
+button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+button:hover { filter: brightness(0.98); }
+button:active { filter: brightness(0.95); }
+button:disabled { opacity: 0.6; cursor: not-allowed; }
+#status { font-size: 14px; color: #374151; }
+.pill { justify-self: end; background: #f3f4f6; padding: 4px 10px; border-radius: 999px; font-size: 12px; color: #444; }
+
+/* Connection status indicator */
+.connection-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #f3f4f6;
+}
+.connection-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+}
+.connection-status.connected .connection-dot {
+  background: var(--success);
+}
+
+main { display: grid; grid-template-columns: 760px 1fr; gap: 16px; padding: 16px; }
+canvas { background: #fdf6e3; border: 2px solid #d1b48c; border-radius: 8px; display: block; }
+aside { padding: 8px; }
+.info { font-size: 14px; display: grid; gap: 4px; margin-bottom: 12px; }
+.legend { display: flex; align-items: center; gap: 8px; font-size: 14px; margin-bottom: 12px; }
+.stone { width: 16px; height: 16px; border-radius: 999px; display: inline-block; border: 1px solid #0004; }
+.stone.black { background: #111; }
+.stone.white { background: #fff; }
+
+/* Modal */
+.modal { position: fixed; inset: 0; display: none; place-items: center; background: rgba(0,0,0,0.4); z-index: 50; }
+.modal.show { display: grid; }
+.modal-card { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 20px; width: min(92vw, 420px); box-shadow: 0 10px 30px rgba(0,0,0,0.15); text-align: center; }
+.modal-card h2 { margin: 0 0 6px 0; }
+.modal-card .muted { color: var(--muted); margin: 0 0 16px 0; }
+.modal-actions { display: grid; gap: 10px; grid-template-columns: 1fr 1fr 1fr; }
+
+/* Waiting overlay */
+.overlay {
+  position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.4); z-index: 1000;
+}
+.overlay.hidden { display: none; }
+.overlay-content {
+  display: flex; align-items: center; gap: 14px;
+  background: #fff; border: 1px solid var(--border); border-radius: 12px;
+  padding: 16px 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+}
+.overlay-text h2 { margin: 0 0 4px 0; font-size: 18px; }
+.overlay-text p  { margin: 0; color: var(--muted); font-size: 14px; }
+.spinner {
+  width: 18px; height: 18px; border-radius: 50%; border: 2px solid #ddd; border-top-color: var(--accent);
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+    </style>
   </head>
   <body>
     <div id="app">
@@ -16,11 +106,19 @@
         <h1>Five-in-a-Row</h1>
         <div class="controls">
           <button id="newGameBtn" class="primary">New Multiplayer Game</button>
+          <button id="newLocalBtn" style="display:none">New Local Game</button>
+          <button id="playLocalBtn">Play Local</button>
           <button id="playAiBtn">Play vs AI</button>
           <button id="newAiBtn" style="display:none">New AI Game</button>
         </div>
         <div id="status" role="status">Welcome! Choose a mode to start.</div>
-        <div id="roomPill" class="pill">Room: —</div>
+        <div class="header-right">
+          <div id="connectionStatus" class="connection-status">
+            <div class="connection-dot"></div>
+            <span>Disconnected</span>
+          </div>
+          <div id="roomPill" class="pill">Room: —</div>
+        </div>
       </header>
 
       <main>

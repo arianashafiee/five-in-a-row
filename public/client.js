@@ -20,7 +20,10 @@
     const nextTurnEl = document.getElementById("nextTurn");
     const roomPill = document.getElementById("roomPill");
     const newGameBtn = document.getElementById("newGameBtn");
+    const newLocalBtn = document.getElementById("newLocalBtn");
+    const playLocalBtn = document.getElementById("playLocalBtn");
     const playAiBtn = document.getElementById("playAiBtn");
+    const networkPill = document.getElementById("networkPill");
   
     // Welcome modal
     const welcomeModal = document.getElementById("welcomeModal");
@@ -50,6 +53,29 @@
       mode: sessionStorage.getItem("mode") || null // 'pvp' | 'ai' | 'local' | null
     };
   
+    // Load saved local game state
+    if (state.mode === "local") {
+      const savedBoard = sessionStorage.getItem("localBoard");
+      const savedNextTurn = sessionStorage.getItem("localNextTurn");
+      const savedWinner = sessionStorage.getItem("localWinner");
+      
+      if (savedBoard) {
+        try {
+          state.board = JSON.parse(savedBoard);
+        } catch (e) {
+          state.board = blankBoard();
+        }
+      }
+      
+      if (savedNextTurn) {
+        state.nextTurn = parseInt(savedNextTurn) || BLACK;
+      }
+      
+      if (savedWinner) {
+        state.winner = parseInt(savedWinner) || 0;
+      }
+    }
+  
     // --- Helpers ---
     const show = (el) => el && el.classList.add("show");
     const hide = (el) => el && el.classList.remove("show");
@@ -60,11 +86,63 @@
     const setStatus = (msg) => statusEl && (statusEl.textContent = msg);
     const colorName = (c) => (c === BLACK ? "Black" : c === WHITE ? "White" : "–");
   
+    function updateConnectionStatus(connected, local = false) {
+      if (networkPill) {
+        networkPill.classList.remove('connected', 'disconnected', 'local');
+        const statusText = networkPill.querySelector('span');
+        
+        if (local) {
+          networkPill.classList.add('local');
+          statusText.textContent = 'Local';
+        } else if (connected) {
+          networkPill.classList.add('connected');
+          statusText.textContent = 'Connected';
+        } else {
+          networkPill.classList.add('disconnected');
+          statusText.textContent = 'Disconnected';
+        }
+      }
+    }
+  
     function saveSession() {
       if (state.sessionId) sessionStorage.setItem("sessionId", state.sessionId);
       if (state.roomId) sessionStorage.setItem("roomId", state.roomId);
       if (state.roomName) sessionStorage.setItem("roomName", state.roomName);
       if (state.mode) sessionStorage.setItem("mode", state.mode);
+    }
+  
+    function saveLocalGameState() {
+      if (state.mode === "local") {
+        sessionStorage.setItem("localBoard", JSON.stringify(state.board));
+        sessionStorage.setItem("localNextTurn", state.nextTurn.toString());
+        sessionStorage.setItem("localWinner", state.winner.toString());
+      }
+    }
+  
+    function updateButtonVisibility() {
+      if (state.mode === "local") {
+        // Local mode: show New Local Game, hide New Multiplayer Game and New AI Game
+        if (newGameBtn) newGameBtn.style.display = "none";
+        if (newLocalBtn) newLocalBtn.style.display = "inline-block";
+        if (newAiBtn) newAiBtn.style.display = "none";
+        if (playLocalBtn) playLocalBtn.style.display = "none";
+        if (playAiBtn) playAiBtn.style.display = "inline-block";
+        updateConnectionStatus(false, true); // Always shows "Local" in local mode
+      } else if (state.mode === "ai") {
+        // AI mode: show New AI Game, hide New Local Game
+        if (newGameBtn) newGameBtn.style.display = "inline-block";
+        if (newLocalBtn) newLocalBtn.style.display = "none";
+        if (newAiBtn) newAiBtn.style.display = "inline-block";
+        if (playLocalBtn) playLocalBtn.style.display = "inline-block";
+        if (playAiBtn) playAiBtn.style.display = "none";
+      } else {
+        // PvP mode: show New Multiplayer Game, hide others
+        if (newGameBtn) newGameBtn.style.display = "inline-block";
+        if (newLocalBtn) newLocalBtn.style.display = "none";
+        if (newAiBtn) newAiBtn.style.display = "none";
+        if (playLocalBtn) playLocalBtn.style.display = "inline-block";
+        if (playAiBtn) playAiBtn.style.display = "inline-block";
+      }
     }
   
     function getWsURL() {
@@ -182,12 +260,14 @@
         const w = localCheckWinner(x, y);
         if (w) {
           state.winner = w;
+          saveLocalGameState();
           updateHud();
           drawBoard();
           setStatus(`${colorName(state.winner)} wins! Start a new game or switch to online/AI.`);
           return;
         }
         state.nextTurn = state.nextTurn === BLACK ? WHITE : BLACK;
+        saveLocalGameState();
         updateHud();
         drawBoard();
         return;
@@ -214,13 +294,7 @@
     // --- Buttons ---
     newGameBtn?.addEventListener("click", () => {
       if (state.mode === "local") {
-        // reset local
-        state.board = blankBoard();
-        state.nextTurn = BLACK;
-        state.winner = 0;
-        setStatus("Local game reset. Black moves first.");
-        updateHud();
-        drawBoard();
+        // This should never happen now, but just in case
         return;
       }
       if (!ws || ws.readyState !== 1) return;
@@ -228,20 +302,37 @@
         const preferRoomId = sessionStorage.getItem("lastPvpRoomId") || null;
         state.mode = "pvp";
         saveSession();
-        if (newAiBtn) newAiBtn.style.display = "none";
+        updateButtonVisibility();
         ws.send(JSON.stringify({ type: "switchMode", mode: "pvp", preferRoomId }));
       } else {
         ws.send(JSON.stringify({ type: "newGame" }));
       }
     });
   
+    // New Local Game button
+    newLocalBtn?.addEventListener("click", () => {
+      if (state.mode !== "local") return;
+      // reset local
+      state.board = blankBoard();
+      state.nextTurn = BLACK;
+      state.winner = 0;
+      saveLocalGameState();
+      setStatus("Local game reset. Black moves first.");
+      updateHud();
+      drawBoard();
+    });
+  
+    // Play Local button
+    playLocalBtn?.addEventListener("click", () => {
+      startLocal();
+    });
+  
     function switchToAi() {
       if (state.mode === "pvp" && state.roomId) sessionStorage.setItem("lastPvpRoomId", state.roomId);
       state.mode = "ai";
       saveSession();
+      updateButtonVisibility();
       if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "switchMode", mode: "ai" }));
-      if (newAiBtn) newAiBtn.style.display = "inline-block";
-      if (playAiBtn) playAiBtn.style.display = "none";
     }
   
     playAiBtn?.addEventListener("click", () => {
@@ -266,11 +357,14 @@
       state.nextTurn = BLACK;
       state.winner = 0;
       saveSession();
+      saveLocalGameState();
       hideModal();
       hideWaiting();
       yourColorEl && (yourColorEl.textContent = "— (Local)");
       roomPill && (roomPill.textContent = "Room: Local");
       setStatus("Local game: Black moves first.");
+      updateConnectionStatus(false, true);
+      updateButtonVisibility();
       drawBoard();
       updateHud();
     }
@@ -284,6 +378,7 @@
       state.mode = mode;
       saveSession();
       hideModal();
+      updateButtonVisibility();
       connect();
       if (mode === "pvp") showWaiting();
       else hideWaiting();
@@ -297,9 +392,11 @@
       }
       ws = new WebSocket(getWsURL());
       setStatus("Connecting…");
+      updateConnectionStatus(false);
   
       ws.onopen = () => {
         setStatus("Connected.");
+        updateConnectionStatus(true);
         ws.send(
           JSON.stringify({
             type: "hello",
@@ -310,8 +407,7 @@
         );
         if ((state.mode || "pvp") === "pvp") showWaiting();
   
-        if (newAiBtn) newAiBtn.style.display = state.mode === "ai" ? "inline-block" : "none";
-        if (playAiBtn) playAiBtn.style.display = state.mode === "ai" ? "none" : "inline-block";
+        updateButtonVisibility();
       };
   
       ws.onmessage = (ev) => {
@@ -328,7 +424,6 @@
           state.color = msg.color;
           saveSession();
           yourColorEl && (yourColorEl.textContent = colorName(state.color));
-          // room id is not shown raw; use friendly name when we receive it
           return;
         }
   
@@ -345,8 +440,7 @@
           updateHud();
           drawBoard();
   
-          if (newAiBtn) newAiBtn.style.display = state.mode === "ai" ? "inline-block" : "none";
-          if (playAiBtn) playAiBtn.style.display = state.mode === "ai" ? "none" : "inline-block";
+          updateButtonVisibility();
   
           return;
         }
@@ -383,6 +477,7 @@
   
       ws.onclose = () => {
         setStatus("Disconnected.");
+        updateConnectionStatus(false);
         if ((state.mode || "pvp") === "pvp") showWaiting();
       };
     }
@@ -404,6 +499,7 @@
         // restore local game
         hideModal();
         setStatus("Local game: resume.");
+        updateButtonVisibility();
         updateHud();
         drawBoard();
         return;
@@ -411,8 +507,10 @@
   
       if (hasRoom || hasSession || (savedMode && savedMode !== "local")) {
         state.mode = savedMode || "pvp";
+        updateButtonVisibility();
         connect();
       } else {
+        updateButtonVisibility();
         showModal();
       }
     });

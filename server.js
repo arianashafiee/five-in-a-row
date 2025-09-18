@@ -3,7 +3,10 @@ import helmet from "helmet";
 import { createServer } from "http";
 import { WebSocketServer } from "ws";
 import { v4 as uuid } from "uuid";
-
+import path from "path";
+import { fileURLToPath } from "url";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const app = express();
 app.disable("x-powered-by");
 

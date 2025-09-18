@@ -44,7 +44,7 @@ aside { padding: 8px; }
 .modal-card { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 20px; width: min(92vw, 420px); box-shadow: 0 10px 30px rgba(0,0,0,0.15); text-align: center; }
 .modal-card h2 { margin: 0 0 6px 0; }
 .modal-card .muted { color: var(--muted); margin: 0 0 16px 0; }
-.modal-actions { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
+.modal-actions { display: grid; gap: 10px; grid-template-columns: 1fr 1fr 1fr; }
 
 /* Waiting overlay */
 .overlay {

@@ -1,18 +1,17 @@
 {
     "name": "five-in-a-row",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "private": true,
-    "description": "Gomoku client+server with server-validated moves and AI opponent",
+    "description": "Gomoku client+server with local, server PvP, and AI modes",
     "main": "server.js",
     "type": "module",
     "scripts": {
-      "start": "node server.js",
-      "dev": "NODE_ENV=development node server.js"
+      "start": "node server.js"
     },
     "dependencies": {
       "express": "^4.19.2",
+      "helmet": "^7.1.0",
       "uuid": "^9.0.1",
       "ws": "^8.18.0"
     }
   }
-  
